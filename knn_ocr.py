@@ -45,7 +45,7 @@ def identify():
     final = ''
     min_cont_area=5
 
-    filename = os.path.join('assets', 'input','K.jpg')
+    filename = os.path.join('assets', 'input','tesseract.jpg')
     img = cv2.imread(filename)
     final_img = img.copy()
     mod_img = cv2.cvtColor(img.copy(), cv2.COLOR_BGR2GRAY)
@@ -69,13 +69,15 @@ def identify():
     x_vals = shift(zeros[1])
     y_vals = shift(zeros[0])
 
-    x_max, y_max = zeros[1].max(), 16 - zeros[0].min()
-    x, y = zeros[1].min(), 16 - zeros[0].max() - 1 # algorithm counts from the bottom
+    # x_max, y_max = zeros[1].max(), 16 - zeros[0].min()
+    x_max, y_max = zeros[1].max(), zeros[0].max()
+    # x, y = zeros[1].min(), 16 - zeros[0].max() - 1 # algorithm counts from the bottom
+    x, y = zeros[1].min(), zeros[0].min() # algorithm counts from the bottom
 
     width = x_max - x + 1
     height = y_max - y
 
-    cv2.rectangle(final_img, (x,y), (x_max, y_max), (255, 255, 255), 1);
+    cv2.rectangle(final_img, (x,y), (x_max, y_max), (255, 0, 255), 1);
 
     if x and y:
         feature_row.extend((x, y, width, height, onpix , int(x_vals.mean()), int(y_vals.mean()), int(np.square(x_vals).mean()), int(np.square(y_vals).mean())))

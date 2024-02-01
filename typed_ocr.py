@@ -34,7 +34,7 @@ def main() -> int:
     cv2.imshow("Output: ", mod_img)
     cv2.waitKey(0)
 
-    other, mod_img = cv2.threshold(mod_img,0,255,cv2.THRESH_TOZERO+cv2.THRESH_OTSU)
+    other, mod_img = cv2.threshold(mod_img,127,255,cv2.THRESH_TOZERO+cv2.THRESH_OTSU)
     # other, mod_img = cv2.threshold(mod_img,127,255,cv2.THRESH_TOZERO+cv2.THRESH_OTSU)
     # other, mod_img = cv2.threshold(mod_img,127,255,cv2.THRESH_TOZERO_INV+cv2.THRESH_OTSU)
 
