@@ -57,13 +57,7 @@ def identify():
     letter = pandas.DataFrame(np.asarray(thresh))
     np.savetxt(os.path.join(MODEL_PATH, 'letter'), thresh, delimiter=',', fmt='%d')
     onpix = int(np.count_nonzero(thresh==0)/17) # everything was scaled to 15 max
-
-    x, x_bind, y_bind, last = letter.shape[1]-1, 0, 0, 0 # The first and last 
-    y = letter.shape[0]-1
     
-    # inclusive height and width
-    height = y_bind-y
-    width = x_bind-x + 2 
 
     zeros = np.where(letter == 0)
     x_vals = shift(zeros[1])
@@ -74,6 +68,7 @@ def identify():
     # x, y = zeros[1].min(), 16 - zeros[0].max() - 1 # algorithm counts from the bottom
     x, y = zeros[1].min(), zeros[0].min() # algorithm counts from the bottom
 
+    # inclusive height and width
     width = x_max - x + 1
     height = y_max - y
 
