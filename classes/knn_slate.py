@@ -140,7 +140,7 @@ class KNN_SLATE:
         width = x_max - x + 1
         height = y_max - y
 
-        cv2.rectangle(final_img, (x,y), (x_max, y_max), (255, 0, 255), 1);
+        cv2.rectangle(final_img, (x,y), (x_max, y_max), (255, 0, 255), 1)
 
         if x and y:
             feature_row.extend((x, y, width, height, onpix , int(x_vals.mean()), int(y_vals.mean()), int(np.square(x_vals).mean()), int(np.square(y_vals).mean())))

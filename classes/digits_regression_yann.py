@@ -11,8 +11,12 @@ from dotenv import load_dotenv
 from tensorflow.keras import layers
 from tensorflow.keras.saving import save_model, load_model
 
+import utils
+
 def main() -> int:
     load_dotenv()
+
+    show = False
 
     global model_path
     model_path = os.environ.get("MODEL_PATH")
@@ -31,9 +35,17 @@ def main() -> int:
     if len(sys.argv) > 1:
         img = None
         if len(sys.argv) > 2:
-            img = sys.argv[2] if os.path.isfile(os.path.join('assets', 'input', f'{sys.argv[2]}.jpg')) else None
+            model = sys.argv[2] if os.path.isfile(os.path.join(model_path, sys.argv[2])) else None
+            if not model:
+                print('This model doesn\'t exist')
+
+        if len(sys.argv) > 3:
+            img = sys.argv[3] if os.path.isfile(os.path.join('assets', 'input', sys.argv[3])) else None
             if not img:
                 print('This image doesn\'t exist')
+
+        if len(sys.argv) > 4:
+            show = sys.argv[4] if os.path.isfile(os.path.join(model_path, sys.argv[4])) else True
 
         if sys.argv[1] == 'prep':
             _, _ = prep()
@@ -41,7 +53,7 @@ def main() -> int:
             x_train, y_train, x_test, y_test = prep()
             model = train(x_train, y_train, x_test, y_test)
         elif sys.argv[1] == 'test':
-            test(None, img)
+            test(model, img, show)
     
     return 0
 
@@ -115,8 +127,12 @@ def train(x_train, y_train, x_test, y_test, model_name = None):
     
     return model
 
-def test(model = None, name = None):
-    is_file = False
+def test(model = None, name = None, show = False):
+    detected_digits = []
+    boxes = []
+    full_path = os.path.join(os.path.realpath('.'), model_path, model)
+    is_file = os.path.isfile(full_path)
+
     while model is None or is_file is False:
         print(f'\nThe following models are available:\n\t{os.listdir(model_path)}')
         model_name = input('\nProvide filename for an existing model or press \'n\' to exit:\n')
@@ -125,40 +141,38 @@ def test(model = None, name = None):
         if model_name == 'n':
             exit()
         elif os.path.isfile(full_path):
-            with keras.utils.custom_object_scope({'sparse_softmax_cross_entropy' : tf.compat.v1.losses.sparse_softmax_cross_entropy}):
-                model = load_model(full_path)
             is_file = True
+    
+    with keras.utils.custom_object_scope({'sparse_softmax_cross_entropy' : tf.compat.v1.losses.sparse_softmax_cross_entropy}):
+                model = load_model(full_path)
+    is_file = os.path.isfile(os.path.join('assets', 'input', name))
 
-    is_file = False
-
-    print(f'\nThe following files are available:\n\t{os.listdir(os.path.join("assets", "input"))}')
     while name is None or is_file is False:
+        print(f'\nThe following files are available:\n\t{os.listdir(os.path.join("assets", "input"))}')
         name = input('\nProvide a valid file to analyse:\n')
         
         if os.path.isfile(os.path.join('assets', 'input', name)):
             is_file = True
 
     filename = os.path.join('assets', 'input', name)
-    print(filename)
-    img = cv2.imread(filename, cv2.IMREAD_GRAYSCALE)
 
-    mod_img = img.copy()
-    mod_img.astype('uint8', copy = False)
+    img = cv2.imread(filename)
+    boxes = utils.boxes(img)
 
-    mod_img = cv2.threshold(mod_img, 146, 255, cv2.THRESH_BINARY_INV)[1]
+    for box in boxes:
+        tst = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)[box[1]:box[3], box[0]:box[2]]
 
-    mod_img = cv2.resize(mod_img, (20, 20), interpolation = cv2.INTER_NEAREST) # The MNIST preprocessing preserves the image ratio
-    print(mod_img)
+        new_img = utils.prep_input(tst)
 
-    new_img = np.full((28, 28), 0, dtype = np.uint8)
-    new_img[4:4 + mod_img.shape[0], 4:4 + mod_img.shape[1]] = mod_img
-    new_img = np.expand_dims(new_img, 0)
-    probs = model.predict(new_img)
-    prediction = np.argmax(probs, axis = 1)
+        probs = model.predict(new_img)
+        prediction = np.argmax(probs, axis = 1)
 
-    print(f'{probs} => {prediction}')
-    cv2.imshow(name, new_img[0])
-    cv2.waitKey(0)
+        detected_digits.append({'label': prediction[0], 'conf': np.max(probs, axis = 1)[0],  'mn': (box[0], box[1]), 'mx': (box[2], box[3])})
+
+        if show:
+            print(f'{probs} => {prediction}')
+    
+    utils.label_img(detected_digits, img, show)
 
 if __name__ == '__main__':
     main()
