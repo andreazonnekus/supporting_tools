@@ -7,6 +7,8 @@ import numpy as np
 load_dotenv()
 
 def main() -> int:
+    is_file, name = False, None
+    
     try:
         pytesseract.pytesseract.tesseract_cmd = os.environ.get('TESSERACT_PATH')
         if (not os.path.exists(pytesseract.pytesseract.tesseract_cmd)) or (not os.path.isfile(pytesseract.pytesseract.tesseract_cmd)):
@@ -18,32 +20,29 @@ def main() -> int:
         print(e)
         exit()
     
-    #cv2.namedWindow("output", cv2.WINDOW_NORMAL)  
+    print(f'{os.listdir(os.path.join('assets', 'input'))}')
+    while name is None or is_file is False:
+        name = input('\nProvide a valid file to analyse:')
+        
+        if os.path.isfile(os.path.join('asset', 'input', name)):
+            is_file = True
 
-    filename = os.path.join('assets', 'input','typed_maths.png')
+    filename = os.path.join('assets', 'input',f'{name}.jpg')
     img = cv2.imread(filename, cv2.IMREAD_GRAYSCALE)
-    # config = ('-l eng --oem 1 --psm 3')
 
     mod_img = cv2.copyMakeBorder(img, 2, 2, 2, 2, borderType=cv2.BORDER_CONSTANT)
     cv2.imshow("Output: ", mod_img)
-    # cv2.imshow("Output: ", img)
     cv2.waitKey(0)
 
-    # mod_img = cv2.medianBlur(mod_img,3)
     mod_img = cv2.bilateralFilter(src=mod_img, d=9, sigmaColor=9, sigmaSpace=7)
     cv2.imshow("Output: ", mod_img)
     cv2.waitKey(0)
 
     other, mod_img = cv2.threshold(mod_img,127,255,cv2.THRESH_TOZERO+cv2.THRESH_OTSU)
-    # other, mod_img = cv2.threshold(mod_img,127,255,cv2.THRESH_TOZERO+cv2.THRESH_OTSU)
-    # other, mod_img = cv2.threshold(mod_img,127,255,cv2.THRESH_TOZERO_INV+cv2.THRESH_OTSU)
 
-    # mod_img = cv2.adaptiveThreshold(mod_img,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,11,2)
-    # mod_img = cv2.adaptiveThreshold(mod_img,255,cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY,7,1)
     cv2.imshow("Output: ", mod_img)
     cv2.waitKey(0)
 
-    # results = pytesseract.image_to_data(mod_img, output_type=Output.DATAFRAME, config=config).replace(' ', np.nan, inplace=False).dropna()
     results = pytesseract.image_to_data(mod_img, output_type=Output.DATAFRAME).replace(' ', np.nan, inplace=False).dropna()
         
     results.drop(results[results.conf < 10].index, inplace=True)
