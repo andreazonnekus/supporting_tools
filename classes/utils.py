@@ -1,13 +1,12 @@
+import os, sys, cv2, math
+import numpy as np
 from PIL import Image
 from dotenv import load_dotenv
-import os, sys, cv2
-import numpy as np
+import matplotlib.pyplot as plt
 
 load_dotenv()
 
-
 def main() -> int:
-
     # method = sys.argv[1], 
     # filename = sys.argv[2], 
     
@@ -136,6 +135,61 @@ def label_img(input_dicts, img, show = False):
             cv2.imshow(name, img)
             cv2.waitKey(0)
         cv2.imwrite(os.path.join('assets', 'output', 'final.jpg'),img)
+
+def generate_fig(data, x_label = None, y_label = None, show = False, height = 10, width = 5, line_width = 1, alpha = 1, style = 'ggplot', subplots = False, show_grid = True, title_size = 14, label_size = 10):
+    plt.rc('font', size=12)
+    plt.rc('axes', labelsize = label_size, titlesize = title_size)
+    plt.rc('legend', fontsize=12)
+    plt.rc('xtick', labelsize=10)
+    plt.rc('ytick', labelsize=10)
+
+    fig = plt.figure(figsize=(height, width))
+    ax = fig.add_subplot(1, 1, 1)
+
+    # add a param to use different styles etc
+    # color_map = 'viridis'
+    # color = 'k'
+    plt.style.use(style)
+    plt.scatter(data[[x_label]], data[[y_label]], linewidth = line_width, alpha = alpha)
+
+    if not x_label:
+        x_label = data.columns[1]
+    if not y_label:
+        y_label = data.columns[2]
+    
+    # plt.set_xlim(min(time), max(time))
+    # makes assumptions about the amounts being processed - x axis is in 10k+ and y axis single digits
+    # but still a more adaptive way of plotting the labels
+    plt.axis([
+        int(round(data[[x_label]].min().values[0]*0.9, -3)),
+        int(round(data[[x_label]].max().values[0]*1.04, -3)), 
+        math.floor(data[[y_label]].min().values[0] - 1),  
+        math.ceil(data[[y_label]].max().values[0]) + 1])
+    
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.grid(show_grid)
+    plt.title(f'{y_label} according to {str.lower(x_label)}')
+    
+    return fig
+
+def save_fig(fig_path, fig_name, fig, tight_layout = True, fig_extension = 'png', resolution = 300, show = False):
+    
+    # if show:
+    #     plt.show()
+
+    if len(fig_name.split('.')) > 1:
+        fig_name = fig_name.split('.')[0]
+        fig_extension = fig_name.split('.')[1]
+    
+    path = f'{fig_path}{os.sep}{fig_name}.{fig_extension}'
+    if tight_layout:
+        plt.tight_layout()
+    
+    try:
+        fig.savefig(path, format = fig_extension, dpi = resolution)
+    except Exception as e:
+        print(f'Saving the figure failed: \n\t{e}')
 
 if __name__ == '__main__':
     sys.exit(main())

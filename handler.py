@@ -8,9 +8,9 @@ class MULTITOOL:
 
         actions = {}
 
-        for module in [x for x in os.listdir('classes') if (x.find('.py') != -1 and x != "__init__.py")]:
+        for module in [x for x in os.listdir('classes') if (x.find('.py') != -1 and x != "__init__.py"  and x != "utils.py")]:
             module = importlib.import_module(f'classes.{module.split(".")[0]}')
-            class_name = inspect.getmembers(module, inspect.isclass)[0][0]
+            class_name = [x for x in inspect.getmembers(module, inspect.isclass) if x[0]==str.upper(module.__name__.split('.')[1])][0][0]
             actions[str.lower(class_name)] = getattr(module, class_name)
         del module
         
@@ -50,10 +50,10 @@ class MULTITOOL:
         print(f"Functions available in {action_instance.__class__.__name__}: {', '.join(functions)}")
 
     def _execute_function(self, action_instance, function_name, param1, param2):
-        if hasattr(action_instance, function_name):
+        if hasattr(action_instance, function_name) and callable(func := getattr(action_instance, function_name)):
             # Check if the action class has the specified function
-            function_to_call = getattr(action_instance, function_name)
-            function_to_call() #TODO: Fix these parameters
+            # func(param1, param2)
+            func()
         else:
             print(f"Invalid function '{function_name}' for the chosen action.")
 
