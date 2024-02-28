@@ -1,3 +1,8 @@
+"""
+Hands-On Machine Learning with Scikit-Learn, Keras, and TensorFlow - 電子書 ISBN: 9781098122461
+https://github.com/ageron/handson-ml3/blob/main/01_the_machine_learning_landscape.ipynb
+"""
+
 import os, sys, math
 import numpy as np
 import pandas as pd
