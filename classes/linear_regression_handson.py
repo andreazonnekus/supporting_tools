@@ -3,7 +3,7 @@ Hands-On Machine Learning with Scikit-Learn, Keras, and TensorFlow - 電子書 I
 https://github.com/ageron/handson-ml3/blob/main/01_the_machine_learning_landscape.ipynb
 """
 
-import os, sys, math
+import os, sys, math, pickle
 import numpy as np
 import pandas as pd
 from joblib import dump, load
@@ -99,18 +99,18 @@ class LINEAR_REGRESSION_HANDSON:
         return x_train, y_train, x_test, y_test
 
     def train(self, x_train = None, y_train = None, x_test = None, y_test = None, model_name = None):
+        model = LinearRegression()
         is_folder = False
 
         # TODO: Fix this!
         x_train, y_train, x_test, y_test = self.prep()
 
         while model_name is None or is_folder is False:
-            model_name = input('\nProvide folder name for an existing model or enter \'new\' to create a new one:\n')
-            full_path = os.path.join(os.path.realpath('.'), model_path, f'{model_name}.keras')
+            model_name = input('\nProvide name for an existing model or enter \'new\' to create a new one:\n')
+            full_path = os.path.join(os.path.realpath('.'), model_path, f'{model_name}')
 
             if model_name == 'new':
                 # regression with softmax
-                model = LinearRegression()
                 is_folder = True
             elif os.path.isfile(full_path):
                 model = load(full_path)
@@ -123,9 +123,10 @@ class LINEAR_REGRESSION_HANDSON:
                     overwrite = input('\nType \'y\' to use overwrite the existing model or type \'n\' to save another:\n')
                     if overwrite == 'y':
                         is_folder = True
+                else:
+                    model_name = input('\nProvide filename for the new model:\n')
 
-                model_name = input('\nProvide filename for the new model:\n')
-                full_path = os.path.join(os.path.realpath('.'), model_path, f'{model_name}.keras')
+                full_path = os.path.join(os.path.realpath('.'), model_path, f'{model_name}')
 
                 if os.path.isfile(full_path):
                     overwrite = input('\nType \'y\' to overwrite the existing file\n')
@@ -134,10 +135,9 @@ class LINEAR_REGRESSION_HANDSON:
                 else:
                     is_folder = True
             model.fit(x_train, y_train)
-            # print(model.summary())
 
             results = model.score(x_test, y_test)
-            print("Trained model: accuracy of {:5.2f}% with a loss of {:5.2f}".format(100 * results[1], results[0]))
+            print(results)
 
             dump(model, full_path)
         except Exception as e:
@@ -145,16 +145,19 @@ class LINEAR_REGRESSION_HANDSON:
             
         # return model
 
-    def test(model = None, name = None, show = False):
+    def test(self, model = None, name = None, show = False):
         new_img, overwrite = '', ''
-        full_path = os.path.join(os.path.realpath('.'), model_path, model)
-        is_file = os.path.isfile(full_path)
+
+        if model:
+            full_path = os.path.join(os.path.realpath('.'), model_path, model)
+        
+        is_file = os.path.isfile(full_path) if model else False
         while model is None or is_file is False:
             print(f'\nThe following models are available:\n\t{os.listdir(model_path)}')
-            model_name = input('\nProvide filename for an existing model or press \'n\' to exit:\n')
-            full_path = os.path.join(os.path.realpath('.'), model_path, model_name)
+            model = input('\nProvide filename for an existing model or press \'n\' to exit:\n')
+            full_path = os.path.join(os.path.realpath('.'), model_path, model)
 
-            if model_name == 'n':
+            if model == 'n':
                 exit()
             elif os.path.isfile(full_path):
                 is_file = True
@@ -162,33 +165,35 @@ class LINEAR_REGRESSION_HANDSON:
 
         fig_path = os.path.join('assets', 'output')
         print(f'\nThese are the existing files:\n\t{os.listdir(fig_path)}')
-        is_file = os.path.isfile(os.path.join(fig_path, name))
-
+        is_file = os.path.isfile(os.path.join(fig_path, name)) if name else False
         while name is None or is_file is False:
-            name = input('\nProvide a name for the figure\'s base image:\n')
+            name = input('\nProvide a name for the figure\'s base image and include the extension:\n')
 
             if os.path.isfile(os.path.join(fig_path, name)):
                     overwrite = input('\nType \'y\' to overwrite the existing file:\n')
                     if overwrite == 'y':
-                        is_folder = True
-                    else:
-                        new_img = input('\nProvide a name for the new image:\n')
-        # load existing image        
-        figure = imread(os.path.join(fig_path, name))
-        plt.imshow(figure)
+                        is_file = True
+
+        # load existing fig        
+        if overwrite == 'y':
+            with open(os.path.join(fig_path, f'{name.split(".")[0]}.pickle'), 'rb') as file:
+                fig = pickle.load(file)
+            plt.figure(fig.number)
+            plt.show()
 
         # add the data
         x_regg = np.linspace(0,1,100).reshape(-1,1)
 
-        plt.plot(x_regg, model.predict(x), color = 'blue', linewidth = 1)
+        plt.plot(x_regg, model.predict(x_regg), color = 'blue', linewidth = 1)
 
-        test = input('\nGive a value for the model to predict:')
-        pred = model.predict(test)
+        test = input('\nGive a value (float) for the model to predict:\n')
+        to_pred = np.array([float(test)], np.float64).reshape(-1, 1)
+        pred = model.predict(to_pred)
         plt.plot(test, pred, color = 'black', linewidth = 2)
 
         # save or overwrite
         if overwrite == 'y':
-            utils.save_fig(fig_path, name, figure)
+            utils.save_fig(fig_path, name, fig)
         else:
             utils.save_fig(fig_path, new_img, figure)
 

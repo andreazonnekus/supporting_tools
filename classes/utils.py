@@ -1,4 +1,4 @@
-import os, sys, cv2, math
+import os, sys, cv2, math, pickle
 import numpy as np
 from PIL import Image
 from dotenv import load_dotenv
@@ -174,20 +174,18 @@ def generate_fig(data, x_label = None, y_label = None, show = False, height = 10
     return fig
 
 def save_fig(fig_path, fig_name, fig, tight_layout = True, fig_extension = 'png', resolution = 300, show = False):
-    
-    # if show:
-    #     plt.show()
-
     if len(fig_name.split('.')) > 1:
-        fig_name = fig_name.split('.')[0]
         fig_extension = fig_name.split('.')[1]
+        fig_name = fig_name.split('.')[0]
     
-    path = f'{fig_path}{os.sep}{fig_name}.{fig_extension}'
+    path = f'{fig_path}{os.sep}{fig_name}'
     if tight_layout:
         plt.tight_layout()
     
     try:
-        fig.savefig(path, format = fig_extension, dpi = resolution)
+        with open(f'{path}.pickle','wb') as file:
+            pickle.dump(plt.gcf(),file)
+        fig.savefig(f'{path}.{fig_extension}', format = fig_extension, dpi = resolution)
     except Exception as e:
         print(f'Saving the figure failed: \n\t{e}')
 
