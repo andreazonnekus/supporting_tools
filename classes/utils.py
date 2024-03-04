@@ -1,9 +1,10 @@
 import os, sys, cv2, math, pickle
+from zlib import crc32
 import numpy as np
 from PIL import Image
 from dotenv import load_dotenv
 import matplotlib.pyplot as plt
-
+from sklearn.model_selection import StratifiedShuffleSplit, train_test_split
 load_dotenv()
 
 def main() -> int:
@@ -136,21 +137,28 @@ def label_img(input_dicts, img, show = False):
             cv2.waitKey(0)
         cv2.imwrite(os.path.join('assets', 'output', 'final.jpg'),img)
 
-def generate_fig(data, x_label = None, y_label = None, show = False, height = 10, width = 5, line_width = 1, alpha = 1, style = 'ggplot', subplots = False, show_grid = True, title_size = 14, label_size = 10):
+def generate_fig(data, x_label = None, y_label = None, show = False, 
+                 c = None, s = None, height = 6, width = 8, line_width = 1, alpha = 0.4, 
+                 style = 'ggplot', cmap = 'jet', subplots = False, show_grid = True, 
+                 title_size = 14, label_size = 10):
     plt.rc('font', size=12)
     plt.rc('axes', labelsize = label_size, titlesize = title_size)
     plt.rc('legend', fontsize=12)
     plt.rc('xtick', labelsize=10)
     plt.rc('ytick', labelsize=10)
 
-    fig = plt.figure(figsize=(height, width))
+    fig = plt.figure(figsize=(width, height))
     ax = fig.add_subplot(1, 1, 1)
 
     # add a param to use different styles etc
     # color_map = 'viridis'
     # color = 'k'
     plt.style.use(style)
-    plt.scatter(data[[x_label]], data[[y_label]], linewidth = line_width, alpha = alpha)
+
+    if not x_label and not y_label:
+        data.hist()
+    else:
+        plt.scatter(data[[x_label]], data[[y_label]], linewidth = line_width, alpha = alpha, c = c, cmap = cmap, s = data[s] / 100, label = s)
 
     if not x_label:
         x_label = data.columns[1]
@@ -169,7 +177,7 @@ def generate_fig(data, x_label = None, y_label = None, show = False, height = 10
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.grid(show_grid)
-    plt.title(f'{y_label} according to {str.lower(x_label)}')
+    plt.title(f'{y_label} according to {str.lower(x_label)}', y=1.2)
     
     return fig
 
@@ -191,3 +199,31 @@ def save_fig(fig_path, fig_name, fig, tight_layout = True, fig_extension = 'png'
 
 if __name__ == '__main__':
     sys.exit(main())
+
+def add_predictions(fig, x_line, predicted_line, test_value, prediction, color = 'red', marker = 'kX', linewidth = 1, fontsize = 10, y = 0.8):
+        x_min, x_max = fig.axes[0].get_xlim()
+
+        plt.figure(fig.number)
+        plt.plot(x_line, predicted_line, color = color, linewidth = linewidth)
+        plt.plot(test_value, prediction, marker, label='prediction')
+        plt.suptitle(f'Predicted {prediction[0][0]} from {test_value[0]}', fontsize = fontsize, y = y)
+
+        return fig
+
+def shuffle_and_split_data(data, test_ratio):
+    shuffled_indices = np.random.permutation(len(data))
+    test_set_size = int(len(data) * test_ratio)
+    test_indices = shuffled_indices[:test_set_size]
+    train_indices = shuffled_indices[test_set_size:]
+    return data.iloc[train_indices], data.iloc[test_indices]
+
+def is_id_in_test_set(identifier, test_ratio):
+    return crc32(np.int64(identifier)) < test_ratio * 2**32
+
+def split_data_with_id_hash(data, test_ratio, id_column):
+    ids = data[id_column]
+    in_test_set = ids.apply(lambda id_: is_id_in_test_set(id_, test_ratio))
+    return data.loc[~in_test_set], data.loc[in_test_set]
+
+def stratified_split(data, label, splits = 10, size = 0.2, state = 42):
+    return train_test_split(data, test_size = size, stratify = data[label], random_state = state)

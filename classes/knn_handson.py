@@ -10,11 +10,11 @@ from joblib import dump, load
 from dotenv import load_dotenv
 import matplotlib.pyplot as plt
 from matplotlib.image import imread, imsave
-from sklearn.linear_model import LinearRegression
+from sklearn.neighbors import KNeighborsRegressor
 
 from . import utils
 
-class LINEAR_REGRESSION_HANDSON:
+class KNN_HANDSON:
     def __init__(self):
         load_dotenv()
 
@@ -99,7 +99,7 @@ class LINEAR_REGRESSION_HANDSON:
         return x_train, y_train, x_test, y_test
 
     def train(self, x_train = None, y_train = None, x_test = None, y_test = None, model_name = None):
-        model = LinearRegression()
+        model = KNeighborsRegressor(n_neighbors=6)
         is_folder = False
 
         # TODO: Fix this!

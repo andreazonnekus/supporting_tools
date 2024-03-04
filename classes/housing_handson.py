@@ -9,12 +9,14 @@ import pandas as pd
 from joblib import dump, load
 from dotenv import load_dotenv
 import matplotlib.pyplot as plt
+from sklearn.impute import SimpleImputer
 from matplotlib.image import imread, imsave
-from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.neighbors import KNeighborsRegressor
 
 from . import utils
 
-class LINEAR_REGRESSION_HANDSON:
+class HOUSING_HANDSON:
     def __init__(self):
         load_dotenv()
 
@@ -22,6 +24,7 @@ class LINEAR_REGRESSION_HANDSON:
 
         global model_path
         model_path = os.environ.get("MODEL_PATH")
+        np.random.seed(os.environ.get("SEED"))
         if not model_path:
             print('Please define a MODEL_PATH variable in the .env file\nExiting...')
             exit()
@@ -54,22 +57,54 @@ class LINEAR_REGRESSION_HANDSON:
                 test(model, img, show)
 
     def prep(self, dataset = None, show = False, name = ''):
+        imputer = SimpleImputer(strategy="median")
+        cat_encoder = OneHotEncoder()
+        ordinal_encoder = OrdinalEncoder(sparse = False)
+
         x_train, y_train, x_test, y_test = [], [], [], []
+
         # if not dataset:
         if not isinstance(dataset, str):
-            print('Let\'s assume you want to use Lifesat...')
-            data_root = 'https://github.com/ageron/data/raw/main/'
-            lifesat = pd.read_csv(f'{data_root}lifesat/lifesat.csv')
+            print('Let\'s use the housing data...')
+            tarball_path = Path("assets/input/housing.tgz")
+            if not tarball_path.is_file():
+                Path("datasets").mkdir(parents=True, exist_ok=True)
+                url = "https://github.com/ageron/data/raw/main/housing.tgz"
+                urllib.request.urlretrieve(url, tarball_path)
+                with tarfile.open(tarball_path) as housing_tarball:
+                    housing_tarball.extractall(path="assets/input")
 
-            split = 0.9
+            housing = pd.read_csv(Path("datasets/housing/housing.csv"))
 
-            x_label = lifesat.columns[1]
-            y_label = lifesat.columns[2]
-            
-            x_train = lifesat[[x_label]][:math.floor(len(lifesat)*split)].values
-            x_test = lifesat[[x_label]][math.floor(len(lifesat)*split):].values
-            y_train = lifesat[[y_label]][:math.floor(len(lifesat)*split)].values
-            y_test = lifesat[[y_label]][math.floor(len(lifesat)*split):].values
+            housing['income_cat'] = pd.cut(housing["median_income"], bins=[0., 1.5, 3.0, 4.5, 6., np.inf], labels=[1, 2, 3, 4, 5])
+            housing_num = housing.select_dtypes(include=[np.number])
+            imputer.fit(housing_num)
+
+            # concat the imputed with the objects that were not transformed
+            housing = pd.concat([pd.DataFrame(imputer.transform(housing_num), columns=housing_num.columns), housing.select_dtypes(include=['object']), housing.select_dtypes(include=['category'])], axis = 1)
+
+            # encode the labels with one-hot encoding
+            housing_categories = 
+            encoded = ordinal_encoder.fit_transform(housing.select_dtypes(include=['object']))
+            housing.drop(columns = housing.select_dtypes(include=['object']).columns, inplace = True)
+            housing = pd.concat([housing, dummies], axis = 1)
+
+            housing_with_id['id'] = housing['longitude'] * 1000 + housing['latitude'] # adds an `index` column
+            train_set, test_set = util.stratified_split(housing_with_id, 'id')
+
+            for set_ in (train_set, test_set):
+                set_.drop('income_cat', axis=1, inplace=True)
+
+            # split labels and values
+            x_train = train_set.drop('median_house_value', axis = 1)
+            y_train = train_set['median_house_value'].copy()
+            x_test = test_set.drop('median_house_value', axis = 1)
+            y_test = test_set['median_house_value'].copy()
+
+            # TODO: save as a CSV output
+            x_train.corr().sort_values(ascending = False)
+            x_test.corr().sort_values(ascending = False)
+
 
             fig_path = os.path.join('assets', 'output')
             is_file = os.path.isfile(os.path.join(fig_path, name))
@@ -88,7 +123,7 @@ class LINEAR_REGRESSION_HANDSON:
                 else:
                     is_file = True
                 
-            fig = utils.generate_fig(lifesat, x_label, y_label)
+            fig = utils.generate_fig(housing, x_label, y_label, c = 'median_house_value', s = 'population')
             utils.save_fig(fig_path, name, fig)
         elif isinstance(dataset, str):
             # TODO: Check if URL or file
@@ -99,7 +134,7 @@ class LINEAR_REGRESSION_HANDSON:
         return x_train, y_train, x_test, y_test
 
     def train(self, x_train = None, y_train = None, x_test = None, y_test = None, model_name = None):
-        model = LinearRegression()
+        model = KNeighborsRegressor(n_neighbors=6)
         is_folder = False
 
         # TODO: Fix this!
