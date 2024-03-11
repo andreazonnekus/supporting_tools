@@ -1,10 +1,16 @@
-import os, sys, cv2, math, pickle
+import os, sys, cv2, math, pickle, nltk, re, wikipedia
 from zlib import crc32
 import numpy as np
 from PIL import Image
 from dotenv import load_dotenv
 import matplotlib.pyplot as plt
+from collections import Counter
+from nltk.corpus import wordnet as wn
+from nltk.corpus import stopwords as sw
+from nltk.tokenize import word_tokenize
+
 from sklearn.model_selection import StratifiedShuffleSplit, train_test_split
+
 load_dotenv()
 
 def main() -> int:
@@ -155,15 +161,16 @@ def generate_fig(data, x_label = None, y_label = None, show = False,
     # color = 'k'
     plt.style.use(style)
 
+    if not x_label and len(data.columns) > 2:
+        x_label = data.columns[1]
+    if not y_label and len(data.columns) > 2:
+        y_label = data.columns[2]
+
     if not x_label and not y_label:
         data.hist()
     else:
         plt.scatter(data[[x_label]], data[[y_label]], linewidth = line_width, alpha = alpha, c = c, cmap = cmap, s = data[s] / 100, label = s)
 
-    if not x_label:
-        x_label = data.columns[1]
-    if not y_label:
-        y_label = data.columns[2]
     
     # plt.set_xlim(min(time), max(time))
     # makes assumptions about the amounts being processed - x axis is in 10k+ and y axis single digits
@@ -227,3 +234,70 @@ def split_data_with_id_hash(data, test_ratio, id_column):
 
 def stratified_split(data, label, splits = 10, size = 0.2, state = 42):
     return train_test_split(data, test_size = size, stratify = data[label], random_state = state)
+
+def word_similarity(input_word, input_word2 = None, approach = 'wup'):
+    if input_word2:
+        # comparing two provided words
+        word1 = wn.synset(wn.synsets(input_word1, pos=wn.NOUN)[0].name())
+        word2 = wn.synset(wn.synsets(Input_word2, pos=wn.NOUN)[0].name())
+    else:
+        # compare similarity with one word and it's synonym
+        synsets = [x.name() for x in wn.synsets('language', pos=wn.NOUN)][:2]
+        word1 = wn.synset(synsets[0])
+        word2 = wn.synset(synsets[1])
+    if approach == 'wup':
+        return '{}<===>{}: {:.3f}'.format(word1.name(), word2.name(), wn.wup_similarity(word1, word2))
+    elif approach == 'path':
+        return '{}<===>{}: {:.3f}'.format(word1.name(), word2.name(), wn.path_similarity(word1, word2))
+
+def clean_and_tokenize_data(docs, lang_name = 'english'):
+    tokenized_docs, tokenized_words = [], []
+    
+    for doc in docs:
+        tokenized_docs.append([x.lower() for x in word_tokenize(doc) if x not in string.punctuation and x not in sw.words(lang_name)])
+    
+    return docs
+
+def tfidf(keys = [], docs = [], cleaned = False, lang = 'en', lang_name = 'english'):
+    DF, tf_idf, words, word_counts, cleaned = {}, {}, [], [], []
+    words_count, doc_id, = [], 0
+    nltk.download('punkt')
+    nltk.download('stopwords')
+    sww = sw.words()
+
+    if not docs and not keys:
+        # just retrieve some random ones
+        keys = [ 'journal', 'diary', 'notebook']
+
+    if not docs:
+        # get some data using the key
+        wikipedia.set_lang(lang)
+        for key in keys:
+            try:
+                docs.append(wikipedia.page(key).content)
+            except wikipedia.exceptions.DisambiguationError as e:
+                print(f'{key} is not available. Changing {key} to {e.options[0]}')
+                docs.append(wikipedia.page(e.options[0]).content)
+    doc_count = len(docs)
+    for doc in docs:
+        cleaned.append([t.lower() for t in word_tokenize(re.sub(r'[^a-zA-Z ]',' ',doc)) if not t.lower() in sww and t.lower()])
+        for term in np.unique(cleaned[-1]):
+            try:
+                DF[term] +=1
+            except:
+                DF[term] =1
+
+    for item in cleaned:
+        word_counts = len(item)
+        counter = Counter(item)
+        for word in np.unique(item):
+        tf = counter[word]/word_counts
+
+        # calculate Inverse Document Frequency
+        idf = math.log(doc_count/(DF[word]+1)) +1
+        # calculate TF-IDF
+        if word in tf_idf:
+            tf_idf[word] += float(tf*idf)
+        else:
+            tf_idf[word] = float(tf*idf)
+    return tf_idf

@@ -3,10 +3,10 @@ Hands-On Machine Learning with Scikit-Learn, Keras, and TensorFlow - 電子書 I
 https://github.com/ageron/handson-ml3/blob/main/01_the_machine_learning_landscape.ipynb
 """
 
-import os, sys, math, pickle
+import os, sys, math, pickle, tarfile
+from pathlib import Path
 import numpy as np
 import pandas as pd
-from joblib import dump, load
 from dotenv import load_dotenv
 import matplotlib.pyplot as plt
 from sklearn.impute import SimpleImputer
@@ -59,22 +59,22 @@ class HOUSING_HANDSON:
     def prep(self, dataset = None, show = False, name = ''):
         imputer = SimpleImputer(strategy="median")
         cat_encoder = OneHotEncoder()
-        ordinal_encoder = OrdinalEncoder(sparse = False)
-
+        cat_encoder.handle_unknown = "ignore"
         x_train, y_train, x_test, y_test = [], [], [], []
 
         # if not dataset:
-        if not isinstance(dataset, str):
+        if not dataset:
             print('Let\'s use the housing data...')
-            tarball_path = Path("assets/input/housing.tgz")
+            outpath = os.path.join('assets', 'input')
+            tarball_path = Path(os.path.join(outpath, 'housing.tgz'))
             if not tarball_path.is_file():
                 Path("datasets").mkdir(parents=True, exist_ok=True)
                 url = "https://github.com/ageron/data/raw/main/housing.tgz"
                 urllib.request.urlretrieve(url, tarball_path)
                 with tarfile.open(tarball_path) as housing_tarball:
-                    housing_tarball.extractall(path="assets/input")
+                    housing_tarball.extractall(path=outfile)
 
-            housing = pd.read_csv(Path("datasets/housing/housing.csv"))
+            housing = pd.read_csv(Path(os.path.join(outpath, 'housing', 'housing.csv')))
 
             housing['income_cat'] = pd.cut(housing["median_income"], bins=[0., 1.5, 3.0, 4.5, 6., np.inf], labels=[1, 2, 3, 4, 5])
             housing_num = housing.select_dtypes(include=[np.number])
@@ -83,9 +83,10 @@ class HOUSING_HANDSON:
             # concat the imputed with the objects that were not transformed
             housing = pd.concat([pd.DataFrame(imputer.transform(housing_num), columns=housing_num.columns), housing.select_dtypes(include=['object']), housing.select_dtypes(include=['category'])], axis = 1)
 
-            # encode the labels with one-hot encoding
-            housing_categories = 
-            encoded = ordinal_encoder.fit_transform(housing.select_dtypes(include=['object']))
+            # encode the labels with ordinal encoding
+            df_test_unknown = pd.DataFrame({"ocean_proximity": ["<2H OCEAN", "ISLAND"]})
+
+            encoded = pd.DataFrame(cat_encoder.transform(df_test_unknown), columns = cat_encoder.get_feature_names_out(), index = df_test_unknown.index)
             housing.drop(columns = housing.select_dtypes(include=['object']).columns, inplace = True)
             housing = pd.concat([housing, dummies], axis = 1)
 
