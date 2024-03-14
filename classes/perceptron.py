@@ -1,6 +1,7 @@
 
 import random, pickle, os
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 from joblib import dump, load
 from sklearn.datasets import make_classification
@@ -70,7 +71,7 @@ class Perceptron:
         
         while model_name is None or is_folder is False:
             model_name = input('\nProvide name for an existing model or enter \'new\' to create a new one:\n')
-            full_path = os.path.join(os.path.realpath('.'), model_path, f'{model_name}')
+            full_path = os.path.join(os.path.realpath('.'), self.model_path, f'{model_name}')
 
             if model_name == 'new':
                 # regression with softmax
@@ -149,6 +150,7 @@ class Perceptron:
             fig = pickle.load(file)
             x_min, x_max = fig.axes[0].get_xlim()
             y_min, y_max = fig.axes[0].get_ylim()
+            amount = len(fig.axes[0].lines.get_xdata())
 
         # add the data
         xx, yy = np.meshgrid(np.linspace(x_min, x_max, amount),

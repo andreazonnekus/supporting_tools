@@ -8,6 +8,7 @@ from collections import Counter
 from nltk.corpus import wordnet as wn
 from nltk.corpus import stopwords as sw
 from nltk.tokenize import word_tokenize
+import gensim.downloader as gen_api
 
 from sklearn.model_selection import StratifiedShuffleSplit, train_test_split
 
@@ -43,6 +44,17 @@ def main() -> int:
     return 0
 
 def box(img, show = False):
+    """
+    Apply thresholding and rectangle detection on the input image.
+
+    Parameters:
+    - img: Input image as a filename (string) or numpy array.
+    - show (bool, optional): Whether to display intermediate results. Defaults to False.
+
+    Returns:
+    Tuple: Coordinates of the detected rectangle.
+    """
+
     # if a string, assume not an array
     if isinstance(img, str):
         img = cv2.imread(img)
@@ -71,6 +83,16 @@ def box(img, show = False):
     return (x, y), (x_max, y_max)
 
 def boxes(img, show = False):
+    """
+    Apply thresholding and detect multiple rectangles in the input image.
+
+    Parameters:
+    - img: Input image as a filename (string) or numpy array.
+    - show (bool, optional): Whether to display intermediate results. Defaults to False.
+
+    Returns:
+    List: List of bounding box coordinates.
+    """
     boxes = []
 
     # if a string, assume not an array
@@ -101,6 +123,16 @@ def boxes(img, show = False):
     return boxes
 
 def prep_input(img, show = False):
+    """
+    Preprocess input image for further analysis.
+
+    Parameters:
+    - img: Input image as a filename (string) or numpy array.
+    - show (bool, optional): Whether to display intermediate results. Defaults to False.
+
+    Returns:
+    np.ndarray: Preprocessed image array.
+    """
     # if a string, assume not an array
     if isinstance(img, str):
         img = cv2.imread(img, cv2.IMREAD_GRAYSCALE)
@@ -132,6 +164,14 @@ def prep_input(img, show = False):
     return np.expand_dims(new_img, 0)
 
 def label_img(input_dicts, img, show = False):
+    """
+    Label bounding boxes on the input image.
+
+    Parameters:
+    - input_dicts: List of dictionaries containing bounding box information.
+    - img: Input image as a numpy array.
+    - show (bool, optional): Whether to display the labeled image. Defaults to False.
+    """
     for input_dict in input_dicts:
         if show:
                 print(input_dict)
@@ -147,6 +187,31 @@ def generate_fig(data, x_label = None, y_label = None, show = False,
                  c = None, s = None, height = 6, width = 8, line_width = 1, alpha = 0.4, 
                  style = 'ggplot', cmap = 'jet', subplots = False, show_grid = True, 
                  title_size = 14, label_size = 10):
+    """
+    Generate a plot based on input data.
+
+    Parameters:
+    - data: Input data.
+    - x_label (optional): Label for the x-axis. Defaults to None.
+    - y_label (optional): Label for the y-axis. Defaults to None.
+    - show (bool, optional): Whether to display the plot. Defaults to False.
+    - c (optional): Color parameter. Defaults to None.
+    - s (optional): Size parameter. Defaults to None.
+    - height (int, optional): Height of the plot. Defaults to 6.
+    - width (int, optional): Width of the plot. Defaults to 8.
+    - line_width (int, optional): Line width. Defaults to 1.
+    - alpha (float, optional): Transparency of markers. Defaults to 0.4.
+    - style (str, optional): Plot style. Defaults to 'ggplot'.
+    - cmap (str, optional): Color map. Defaults to 'jet'.
+    - subplots (bool, optional): Whether to use subplots. Defaults to False.
+    - show_grid (bool, optional): Whether to display grid lines. Defaults to True.
+    - title_size (int, optional): Font size of the title. Defaults to 14.
+    - label_size (int, optional): Font size of labels. Defaults to 10.
+
+    Returns:
+    plt.Figure: Generated plot figure.
+    """
+    
     plt.rc('font', size=12)
     plt.rc('axes', labelsize = label_size, titlesize = title_size)
     plt.rc('legend', fontsize=12)
@@ -189,6 +254,18 @@ def generate_fig(data, x_label = None, y_label = None, show = False,
     return fig
 
 def save_fig(fig_path, fig_name, fig, tight_layout = True, fig_extension = 'png', resolution = 300, show = False):
+    """
+    Save a generated plot figure.
+
+    Parameters:
+    - fig_path: Path to save the figure.
+    - fig_name: Name of the figure file.
+    - fig: Generated plot figure.
+    - tight_layout (bool, optional): Whether to apply tight layout. Defaults to True.
+    - fig_extension (str, optional): File extension of the figure. Defaults to 'png'.
+    - resolution (int, optional): Resolution of the figure. Defaults to 300.
+    - show (bool, optional): Whether to display the saved figure. Defaults to False.
+    """
     if len(fig_name.split('.')) > 1:
         fig_extension = fig_name.split('.')[1]
         fig_name = fig_name.split('.')[0]
@@ -208,16 +285,44 @@ if __name__ == '__main__':
     sys.exit(main())
 
 def add_predictions(fig, x_line, predicted_line, test_value, prediction, color = 'red', marker = 'kX', linewidth = 1, fontsize = 10, y = 0.8):
-        x_min, x_max = fig.axes[0].get_xlim()
+    """
+    Add predictions to a plot figure.
 
-        plt.figure(fig.number)
-        plt.plot(x_line, predicted_line, color = color, linewidth = linewidth)
-        plt.plot(test_value, prediction, marker, label='prediction')
-        plt.suptitle(f'Predicted {prediction[0][0]} from {test_value[0]}', fontsize = fontsize, y = y)
+    Parameters:
+    - fig: Input plot figure.
+    - x_line: X-axis values.
+    - predicted_line: Predicted values.
+    - test_value: Test values.
+    - prediction: Predicted value.
+    - color (str, optional): Color of the predictions. Defaults to 'red'.
+    - marker (str, optional): Marker style. Defaults to 'kX'.
+    - linewidth (int, optional): Line width. Defaults to 1.
+    - fontsize (int, optional): Font size. Defaults to 10.
+    - y (float, optional): Y-coordinate. Defaults to 0.8.
 
-        return fig
+    Returns:
+    plt.Figure: Updated plot figure.
+    """
+
+    plt.figure(fig.number)
+    plt.plot(x_line, predicted_line, color = color, linewidth = linewidth)
+    plt.plot(test_value, prediction, marker, label='prediction')
+    plt.suptitle(f'Predicted {prediction[0][0]} from {test_value[0]}', fontsize = fontsize, y = y)
+
+    return fig
 
 def shuffle_and_split_data(data, test_ratio):
+    """
+    Shuffle and split input data into training and test sets.
+
+    Parameters:
+    - data: Input data.
+    - test_ratio: Ratio of the test set.
+
+    Returns:
+    Tuple: Training and test sets.
+    """
+
     shuffled_indices = np.random.permutation(len(data))
     test_set_size = int(len(data) * test_ratio)
     test_indices = shuffled_indices[:test_set_size]
@@ -225,17 +330,50 @@ def shuffle_and_split_data(data, test_ratio):
     return data.iloc[train_indices], data.iloc[test_indices]
 
 def is_id_in_test_set(identifier, test_ratio):
+    """
+    Determine if an identifier belongs to the test set based on its hash.
+
+    Parameters:
+    - identifier: Identifier value.
+    - test_ratio: Ratio of the test set.
+
+    Returns:
+    bool: True if the identifier belongs to the test set, False otherwise.
+    """
     return crc32(np.int64(identifier)) < test_ratio * 2**32
 
 def split_data_with_id_hash(data, test_ratio, id_column):
+    """
+    Split data into training and test sets based on an identifier column.
+
+    Parameters:
+    - data: Input data.
+    - test_ratio: Ratio of the test set.
+    - id_column: Identifier column name.
+
+    Returns:
+    Tuple: Training and test sets.
+    """
     ids = data[id_column]
     in_test_set = ids.apply(lambda id_: is_id_in_test_set(id_, test_ratio))
     return data.loc[~in_test_set], data.loc[in_test_set]
 
 def stratified_split(data, label, splits = 10, size = 0.2, state = 42):
+
     return train_test_split(data, test_size = size, stratify = data[label], random_state = state)
 
 def word_similarity(input_word, input_word2 = None, approach = 'wup'):
+    """
+    Measure the similarity between words using WordNet.
+
+    Parameters:
+    - input_word: Input word.
+    - input_word2: Second input word (optional). Defaults to None.
+    - approach: Similarity approach ('wup' or 'path'). Defaults to 'wup'.
+
+    Returns:
+    str: String indicating the similarity between words.
+    """
     if input_word2:
         # comparing two provided words
         word1 = wn.synset(wn.synsets(input_word1, pos=wn.NOUN)[0].name())
@@ -250,15 +388,20 @@ def word_similarity(input_word, input_word2 = None, approach = 'wup'):
     elif approach == 'path':
         return '{}<===>{}: {:.3f}'.format(word1.name(), word2.name(), wn.path_similarity(word1, word2))
 
-def clean_and_tokenize_data(docs, lang_name = 'english'):
-    tokenized_docs, tokenized_words = [], []
-    
-    for doc in docs:
-        tokenized_docs.append([x.lower() for x in word_tokenize(doc) if x not in string.punctuation and x not in sw.words(lang_name)])
-    
-    return docs
-
 def tfidf(keys = [], docs = [], cleaned = False, lang = 'en', lang_name = 'english'):
+    """
+    Compute TF-IDF scores for given documents.
+
+    Parameters:
+    - keys: Keywords for fetching documents (optional).
+    - docs: List of documents (optional).
+    - cleaned (bool, optional): Whether the documents are pre-cleaned. Defaults to False.
+    - lang: Language for Wikipedia search. Defaults to 'en'.
+    - lang_name: Language name for NLTK stopwords. Defaults to 'english'.
+
+    Returns:
+    Dict: Dictionary containing TF-IDF scores.
+    """
     DF, tf_idf, words, word_counts, cleaned = {}, {}, [], [], []
     words_count, doc_id, = [], 0
     nltk.download('punkt')
@@ -274,7 +417,7 @@ def tfidf(keys = [], docs = [], cleaned = False, lang = 'en', lang_name = 'engli
         wikipedia.set_lang(lang)
         for key in keys:
             try:
-                docs.append(wikipedia.page(key).content)
+                docs.append(wikipedia.page(key, auto_suggest = False).content)
             except wikipedia.exceptions.DisambiguationError as e:
                 print(f'{key} is not available. Changing {key} to {e.options[0]}')
                 docs.append(wikipedia.page(e.options[0]).content)
@@ -291,13 +434,33 @@ def tfidf(keys = [], docs = [], cleaned = False, lang = 'en', lang_name = 'engli
         word_counts = len(item)
         counter = Counter(item)
         for word in np.unique(item):
-        tf = counter[word]/word_counts
+            tf = counter[word]/word_counts
 
-        # calculate Inverse Document Frequency
-        idf = math.log(doc_count/(DF[word]+1)) +1
-        # calculate TF-IDF
-        if word in tf_idf:
-            tf_idf[word] += float(tf*idf)
-        else:
-            tf_idf[word] = float(tf*idf)
+            # calculate Inverse Document Frequency
+            idf = math.log(doc_count/(DF[word]+1)) +1
+            # calculate TF-IDF
+            if word in tf_idf:
+                tf_idf[word] += float(tf*idf)
+            else:
+                tf_idf[word] = float(tf*idf)
     return tf_idf
+
+def find_synonym(word, words, model = None):
+    """
+    Find synonyms for a given word.
+
+    Parameters:
+    - word: Input word.
+    - words: List of words to search for synonyms.
+    - model: Pre-trained word embedding model (optional).
+
+    Returns:
+    Tuple: The synonym and it's cosine similarity
+    """
+    if not model:
+        model = gen_api.load("glove-wiki-gigaword-50")
+    similarity = {}
+    for term in words:
+        if term not in similarity and term != word:
+         similarity[term] = model.similarity(word, term)
+    return sorted(similarity.items(), key = lambda val: val[1], reverse=True)[0]

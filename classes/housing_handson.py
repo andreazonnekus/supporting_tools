@@ -3,16 +3,16 @@ Hands-On Machine Learning with Scikit-Learn, Keras, and TensorFlow - 電子書 I
 https://github.com/ageron/handson-ml3/blob/main/01_the_machine_learning_landscape.ipynb
 """
 
-import os, sys, math, pickle, tarfile
+import os, sys, math, pickle, tarfile, urllib
 from pathlib import Path
 import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 import matplotlib.pyplot as plt
 from sklearn.impute import SimpleImputer
-from matplotlib.image import imread, imsave
+from joblib import dump, load
 from sklearn.preprocessing import OneHotEncoder
-from sklearn.neighbors import KNeighborsRegressor
+from sklearn.linear_model import LinearRegression
 
 from . import utils
 
@@ -49,18 +49,19 @@ class HOUSING_HANDSON:
                 show = sys.argv[3] if os.path.isfile(os.path.join(model_path, sys.argv[3])) else True
 
             if sys.argv[1] == 'prep':
-               x_train, y_train, x_test, y_test = prep(self)
+               x_train, y_train, x_test, y_test = self.prep(self)
             elif sys.argv[1] == 'train':
-                x_train, y_train, x_test, y_test = prep(self)
-                train(self, x_train, y_train, x_test, y_test)
+                x_train, y_train, x_test, y_test = self.prep(self)
+                self.train(self, x_train, y_train, x_test, y_test)
             elif sys.argv[1] == 'test':
-                test(model, img, show)
+                self.test(model, img, show)
 
     def prep(self, dataset = None, show = False, name = ''):
         imputer = SimpleImputer(strategy="median")
         cat_encoder = OneHotEncoder()
         cat_encoder.handle_unknown = "ignore"
         x_train, y_train, x_test, y_test = [], [], [], []
+        y_label = 'median_house_value'
 
         # if not dataset:
         if not dataset:
@@ -72,26 +73,31 @@ class HOUSING_HANDSON:
                 url = "https://github.com/ageron/data/raw/main/housing.tgz"
                 urllib.request.urlretrieve(url, tarball_path)
                 with tarfile.open(tarball_path) as housing_tarball:
-                    housing_tarball.extractall(path=outfile)
+                    housing_tarball.extractall(path=outpath)
 
             housing = pd.read_csv(Path(os.path.join(outpath, 'housing', 'housing.csv')))
 
-            housing['income_cat'] = pd.cut(housing["median_income"], bins=[0., 1.5, 3.0, 4.5, 6., np.inf], labels=[1, 2, 3, 4, 5])
+            housing["total_bedrooms"].fillna(housing["total_bedrooms"].median(), inplace=True)  # option 3
+
             housing_num = housing.select_dtypes(include=[np.number])
             imputer.fit(housing_num)
-
             # concat the imputed with the objects that were not transformed
-            housing = pd.concat([pd.DataFrame(imputer.transform(housing_num), columns=housing_num.columns), housing.select_dtypes(include=['object']), housing.select_dtypes(include=['category'])], axis = 1)
-
+            housing = pd.concat([pd.DataFrame(imputer.transform(housing_num), columns=housing_num.columns, index=housing_num.index), housing.select_dtypes(include=['object']), housing.select_dtypes(include=['category'])], axis = 1)
+            
+            housing['income_cat'] = pd.cut(housing["median_income"], bins=[0., 1.5, 3.0, 4.5, 6., np.inf], labels=[1, 2, 3, 4, 5])
+            housing["rooms_per_house"] = housing["total_rooms"] / housing["households"]
+            housing["bedrooms_ratio"] = housing["total_bedrooms"] / housing["total_rooms"]
+            housing["people_per_house"] = housing["population"] / housing["households"]
+            
             # encode the labels with ordinal encoding
             df_test_unknown = pd.DataFrame({"ocean_proximity": ["<2H OCEAN", "ISLAND"]})
 
             encoded = pd.DataFrame(cat_encoder.transform(df_test_unknown), columns = cat_encoder.get_feature_names_out(), index = df_test_unknown.index)
             housing.drop(columns = housing.select_dtypes(include=['object']).columns, inplace = True)
-            housing = pd.concat([housing, dummies], axis = 1)
+            housing = pd.concat([housing, encoded], axis = 1)
 
-            housing_with_id['id'] = housing['longitude'] * 1000 + housing['latitude'] # adds an `index` column
-            train_set, test_set = util.stratified_split(housing_with_id, 'id')
+            housing['id'] = housing['longitude'] * 1000 + housing['latitude'] # adds an `index` column
+            train_set, test_set = utils.stratified_split(housing, 0.2, 'id')
 
             for set_ in (train_set, test_set):
                 set_.drop('income_cat', axis=1, inplace=True)
