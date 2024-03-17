@@ -70,7 +70,10 @@ def box(img, show = False):
         cv2.imshow('tst', thresh)
         cv2.waitKey(0)
 
-    # np.savetxt(os.path.join(os.path.realpath('.'), 'output', 'letter'), thresh, delimiter=',', fmt='%d')
+    contour, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    x, y, w, h = cv2.boundingRect(contour)
+    x_max = x + w
+    y_max = y + h
 
     cv2.rectangle(img, (x,y), (x_max, y_max), (255, 0, 0), 1)
 
@@ -376,8 +379,8 @@ def word_similarity(input_word, input_word2 = None, approach = 'wup'):
     """
     if input_word2:
         # comparing two provided words
-        word1 = wn.synset(wn.synsets(input_word1, pos=wn.NOUN)[0].name())
-        word2 = wn.synset(wn.synsets(Input_word2, pos=wn.NOUN)[0].name())
+        word1 = wn.synset(wn.synsets(input_word, pos=wn.NOUN)[0].name())
+        word2 = wn.synset(wn.synsets(input_word2, pos=wn.NOUN)[0].name())
     else:
         # compare similarity with one word and it's synonym
         synsets = [x.name() for x in wn.synsets('language', pos=wn.NOUN)][:2]
