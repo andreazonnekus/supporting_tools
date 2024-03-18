@@ -52,8 +52,7 @@ class MULTITOOL:
     def _execute_function(self, action_instance, function_name, param1, param2):
         if hasattr(action_instance, function_name) and callable(func := getattr(action_instance, function_name)):
             # Check if the action class has the specified function
-            # func(param1, param2)
-            func()
+            func(param1, param2)
         else:
             print(f"Invalid function '{function_name}' for the chosen action.")
 

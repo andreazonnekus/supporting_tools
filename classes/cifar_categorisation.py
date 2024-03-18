@@ -1,19 +1,16 @@
-"""
-http://yann.lecun.com/exdb/mnist/
-"""
-
-import os, sys, keras, cv2
+import os, sys
 import numpy as np
-import tensorflow as tf
 import matplotlib.pyplot as plt
-import tensorflow.keras.datasets.mnist as mnist
 from dotenv import load_dotenv
-from tensorflow.keras import layers
-from tensorflow.keras.saving import save_model, load_model
+import torch
+import torchvision
+import torchvision.transforms as transforms
+import torch.nn as nn
+import torch.nn.functional as F
 
 from . import utils
 
-class DIGITS_REGRESSION_YANN:
+class CIFAR10:
     def __init__(self):
         load_dotenv()
 
@@ -33,41 +30,31 @@ class DIGITS_REGRESSION_YANN:
                     print(e)
                     exit()
              
-    def main(self) -> int:
+    def main() -> int:
         if len(sys.argv) > 1:
-            img = None
             if len(sys.argv) > 2:
                 model = sys.argv[2] if os.path.isfile(os.path.join(model_path, sys.argv[2])) else None
                 if not model:
                     print('This model doesn\'t exist')
 
             if len(sys.argv) > 3:
-                img = sys.argv[3] if os.path.isfile(os.path.join('assets', 'input', sys.argv[3])) else None
-                if not img:
-                    print('This image doesn\'t exist')
-
-            if len(sys.argv) > 4:
-                show = sys.argv[4] if os.path.isfile(os.path.join(model_path, sys.argv[4])) else True
+                show = sys.argv[3] if os.path.isfile(os.path.join(model_path, sys.argv[3])) else True
 
             if sys.argv[1] == 'prep':
-                _, _ = self.prep()
+                _, _ = prep()
             elif sys.argv[1] == 'train':
-                x_train, y_train, x_test, y_test = self.prep()
-                model = self.train(x_train, y_train, x_test, y_test)
+                x_train, y_train, x_test, y_test = prep()
+                model = train(x_train, y_train, x_test, y_test)
             elif sys.argv[1] == 'test':
-                self.test(model, img, show)
+                test(model, show)
         
         return 0
 
 
-    def prep(self, dataset = None):
+    def prep(dataset = None):
         if not dataset:
             print('Let\'s assume you want to use MNIST...')
-            (x_train, y_train), (x_test, y_test) = mnist.load_data()
-            
-            # normalise the images
-            x_train = x_train/255
-            x_test = x_test/255
+           
 
         elif isinstance(dataset, str):
             # TODO: Check if URL or file
@@ -88,19 +75,14 @@ class DIGITS_REGRESSION_YANN:
             full_path = os.path.join(os.path.realpath('.'), model_path, f'{model_name}.keras')
 
             if model_name == 'new':
-                # regression with softmax
-                model = tf.keras.models.Sequential([
-                    layers.Input(x_train.shape[1:]),
-                    layers.Flatten(),
-                    layers.Dense(10, 'softmax'),
-                ])
+                # TODO
+                model = 
 
-                print(model.summary())
+                # print(model.summary())
                 is_folder = True
             elif os.path.isfile(full_path):
-                # tf, keras wackiness
-                with keras.utils.custom_object_scope({'sparse_softmax_cross_entropy' : tf.compat.v1.losses.sparse_softmax_cross_entropy}):
-                    model = load_model(full_path)
+                # TODO
+                model = load_model(full_path)
                 is_folder = True
 
         is_folder = False
@@ -135,8 +117,6 @@ class DIGITS_REGRESSION_YANN:
 
     def test(model = None, name = None, show = False):
         # testing in the sense of 'using'
-        detected_digits = []
-        boxes = []
         full_path = os.path.join(os.path.realpath('.'), model_path, model)
         is_file = os.path.isfile(full_path)
 
@@ -150,8 +130,8 @@ class DIGITS_REGRESSION_YANN:
             elif os.path.isfile(full_path):
                 is_file = True
         
-        with keras.utils.custom_object_scope({'sparse_softmax_cross_entropy' : tf.compat.v1.losses.sparse_softmax_cross_entropy}):
-                    model = load_model(full_path)
+        # TODO
+        model = load_model(full_path)
         is_file = os.path.isfile(os.path.join('assets', 'input', name))
 
         while name is None or is_file is False:

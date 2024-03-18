@@ -56,7 +56,7 @@ class LINEAR_REGRESSION_HANDSON:
     def prep(self, dataset = None, show = False, name = ''):
         x_train, y_train, x_test, y_test = [], [], [], []
         # if not dataset:
-        if not isinstance(dataset, str):
+        if not dataset:
             print('Let\'s assume you want to use Lifesat...')
             data_root = 'https://github.com/ageron/data/raw/main/'
             lifesat = pd.read_csv(f'{data_root}lifesat/lifesat.csv')

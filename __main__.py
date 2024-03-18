@@ -1,4 +1,4 @@
-import .handler import handler
+from . import handler
 def main() -> int:
 
     return 0
