@@ -9,6 +9,7 @@ from nltk.corpus import wordnet as wn
 from nltk.corpus import stopwords as sw
 from nltk.tokenize import word_tokenize
 import gensim.downloader as gen_api
+import seaborn as sb
 
 from sklearn.model_selection import StratifiedShuffleSplit, train_test_split
 
@@ -229,30 +230,60 @@ def generate_fig(data, x_label = None, y_label = None, show = False,
     # color = 'k'
     plt.style.use(style)
 
-    if not x_label and len(data.columns) > 2:
+    # typically an index column to what is otherwise one feature and one target
+    if not x_label and len(data.columns) == 3:
         x_label = data.columns[1]
-    if not y_label and len(data.columns) > 2:
+    if not y_label and len(data.columns) == 3:
         y_label = data.columns[2]
+    
+    # multiple features
+    if y_label and len(data.columns) > 3:
+        fig, axarr = plt.subplots(2)
+        cmap = sb.diverging_palette(230, 20, as_cmap=True)
 
-    if not x_label and not y_label:
-        data.hist()
+        # covariance matrix
+        plt.set(axarr[0])
+        x = data.drop(y_label, axis = 1)
+        cov_mat = np.cov(x.T, bias= True)
+
+        plt.figure(figsize=(13,13))
+        sb.set_theme(font_scale=1.2)
+        hm = sb.heatmap(cov_mat,
+                        cbar=True,
+                        annot=True,
+                        square=True,
+                        fmt='.2f',
+                        annot_kws={'size': 12},
+                        yticklabels=x.columns,
+                        xticklabels=x.columns)
+        plt.title('Covariance matrix showing correlation coefficients')
+
+        # pairplot
+        if y_label and data[y_label] != 'O':
+            color_dict = {data[y_label].min(): 'red', data[y_label].max()*0.25: 'blue', data[y_label].max()*0.5: 'green', data[y_label].max()*0.75: 'orange', data[y_label].max(): 'purple'}
+        else:
+            color_dict = ['#4575b4', '#91bfdb', '#e0f3f8', '#fee090']
+
+        plt.set(axarr[1])
+        sb.pairplot(data, kind='reg', hue=data[y_label], palette=color_dict)
+        plt.title(f'Pairplot of ', y=1.2)
+        plt.tight_layout()
+    # single feature and target
     else:
         plt.scatter(data[[x_label]], data[[y_label]], linewidth = line_width, alpha = alpha, c = c, cmap = cmap, s = data[s] / 100, label = s)
-
+        # plt.set_xlim(min(time), max(time))
+        # makes assumptions about the amounts being processed - x axis is in 10k+ and y axis single digits
+        # but still a more adaptive way of plotting the labels
+        plt.axis([
+            int(round(data[[x_label]].min().values[0]*0.9, -3)),
+            int(round(data[[x_label]].max().values[0]*1.04, -3)), 
+            math.floor(data[[y_label]].min().values[0] - 1),  
+            math.ceil(data[[y_label]].max().values[0]) + 1])
     
-    # plt.set_xlim(min(time), max(time))
-    # makes assumptions about the amounts being processed - x axis is in 10k+ and y axis single digits
-    # but still a more adaptive way of plotting the labels
-    plt.axis([
-        int(round(data[[x_label]].min().values[0]*0.9, -3)),
-        int(round(data[[x_label]].max().values[0]*1.04, -3)), 
-        math.floor(data[[y_label]].min().values[0] - 1),  
-        math.ceil(data[[y_label]].max().values[0]) + 1])
-    
-    plt.xlabel(x_label)
-    plt.ylabel(y_label)
-    plt.grid(show_grid)
-    plt.title(f'{y_label} according to {str.lower(x_label)}', y=1.2)
+        plt.xlabel(x_label)
+        plt.ylabel(y_label)
+        plt.grid(show_grid)
+        plt.title(f'{y_label} according to {str.lower(x_label)}', y=1.2)
     
     return fig
 
@@ -433,7 +464,8 @@ def tfidf(keys = [], docs = [], cleaned = False, lang = 'en', lang_name = 'engli
             except:
                 DF[term] =1
 
-    for item in cleaned:
+    for index in range(cleaned):
+        item = cleaned[index]
         word_counts = len(item)
         counter = Counter(item)
         for word in np.unique(item):
@@ -443,9 +475,9 @@ def tfidf(keys = [], docs = [], cleaned = False, lang = 'en', lang_name = 'engli
             idf = math.log(doc_count/(DF[word]+1)) +1
             # calculate TF-IDF
             if word in tf_idf:
-                tf_idf[word] += float(tf*idf)
+                tf_idf[index, word] += float(tf*idf)
             else:
-                tf_idf[word] = float(tf*idf)
+                tf_idf[index, word] = float(tf*idf)
     return tf_idf
 
 def find_synonym(word, words, model = None):

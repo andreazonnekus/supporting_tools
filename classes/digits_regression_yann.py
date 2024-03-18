@@ -33,7 +33,7 @@ class DIGITS_REGRESSION_YANN:
                     print(e)
                     exit()
              
-    def main() -> int:
+    def main(self) -> int:
         if len(sys.argv) > 1:
             img = None
             if len(sys.argv) > 2:
@@ -50,17 +50,17 @@ class DIGITS_REGRESSION_YANN:
                 show = sys.argv[4] if os.path.isfile(os.path.join(model_path, sys.argv[4])) else True
 
             if sys.argv[1] == 'prep':
-                _, _ = prep()
+                _, _ = self.prep()
             elif sys.argv[1] == 'train':
-                x_train, y_train, x_test, y_test = prep()
-                model = train(x_train, y_train, x_test, y_test)
+                x_train, y_train, x_test, y_test = self.prep()
+                model = self.train(x_train, y_train, x_test, y_test)
             elif sys.argv[1] == 'test':
-                test(model, img, show)
+                self.test(model, img, show)
         
         return 0
 
 
-    def prep(dataset = None):
+    def prep(self, dataset = None):
         if not dataset:
             print('Let\'s assume you want to use MNIST...')
             (x_train, y_train), (x_test, y_test) = mnist.load_data()

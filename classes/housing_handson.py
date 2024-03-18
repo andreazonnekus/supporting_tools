@@ -11,42 +11,47 @@ from dotenv import load_dotenv
 import matplotlib.pyplot as plt
 from sklearn.impute import SimpleImputer
 from joblib import dump, load
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import OneHotEncoder, StandardScaler, FunctionTransformer
+from sklearn.pipeline import Pipeline
 from sklearn.linear_model import LinearRegression
+from sklearn.compose import ColumnTransformer
 
-from . import utils
+from . import utils, housing_transformer
 
 class HOUSING_HANDSON:
     def __init__(self):
         load_dotenv()
-
+        
         show = False
 
-        global model_path
-        model_path = os.environ.get("MODEL_PATH")
+        self.model_path = os.environ.get("MODEL_PATH")
         np.random.seed(os.environ.get("SEED"))
-        if not model_path:
+        if not self.model_path:
             print('Please define a MODEL_PATH variable in the .env file\nExiting...')
             exit()
         else:
-            if not os.path.exists(model_path):
+            if not os.path.exists(self.model_path):
                 print('The model path doesn\'t exist. Trying to create it...')
                 try:
-                    os.makedirs(model_path, exist_ok = True)
+                    os.makedirs(self.model_path, exist_ok = True)
                 except Exception as e:
                     print(e)
                     exit()
+        self.outpath = os.environ.get('OUT_PATH')
+
+        if not self.outpath:
+            os.path.join('assets', 'output')
              
     def main(self) -> int:
         if len(sys.argv) > 1:
             img = None
             if len(sys.argv) > 2:
-                model = sys.argv[2] if os.path.isfile(os.path.join(model_path, sys.argv[2])) else None
+                model = sys.argv[2] if os.path.isfile(os.path.join(self.model_path, sys.argv[2])) else None
                 if not model:
                     print('This model doesn\'t exist')
 
             if len(sys.argv) > 3:
-                show = sys.argv[3] if os.path.isfile(os.path.join(model_path, sys.argv[3])) else True
+                show = sys.argv[3] if os.path.isfile(os.path.join(self.model_path, sys.argv[3])) else True
 
             if sys.argv[1] == 'prep':
                x_train, y_train, x_test, y_test = self.prep(self)
@@ -57,47 +62,56 @@ class HOUSING_HANDSON:
                 self.test(model, img, show)
 
     def prep(self, dataset = None, show = False, name = ''):
-        imputer = SimpleImputer(strategy="median")
-        cat_encoder = OneHotEncoder()
-        cat_encoder.handle_unknown = "ignore"
+        attr_adder = housing_transformer.CombinedAttributesAdder(add_bedrooms_per_room=False)
+        number_pipeline = Pipeline([
+            ('imputer', SimpleImputer(strategy="median")),
+            ('adder', FunctionTransformer(lambda X: attr_adder.transform(X, rooms=3, households=4, population=5, bedrooms=6))),
+            ('scaler', StandardScaler())
+        ])
+
+        final_pipeline = Pipeline([
+            'number', number_pipeline,
+            'categories', OneHotEncoder(handle_unknown = "ignore")
+        ])
+        
         x_train, y_train, x_test, y_test = [], [], [], []
-        y_label = 'median_house_value'
 
         # if not dataset:
         if not dataset:
             print('Let\'s use the housing data...')
-            outpath = os.path.join('assets', 'input')
-            tarball_path = Path(os.path.join(outpath, 'housing.tgz'))
+            tarball_path = Path(os.path.join(self.outpath, 'housing.tgz'))
             if not tarball_path.is_file():
                 Path("datasets").mkdir(parents=True, exist_ok=True)
                 url = "https://github.com/ageron/data/raw/main/housing.tgz"
                 urllib.request.urlretrieve(url, tarball_path)
                 with tarfile.open(tarball_path) as housing_tarball:
-                    housing_tarball.extractall(path=outpath)
+                    housing_tarball.extractall(path=self.outpath)
 
-            housing = pd.read_csv(Path(os.path.join(outpath, 'housing', 'housing.csv')))
+            y_label = 'median_house_value'
+            housing = pd.read_csv(Path(os.path.join(self.outpath, 'housing', 'housing.csv')))
 
             housing["total_bedrooms"].fillna(housing["total_bedrooms"].median(), inplace=True)  # option 3
+            housing['income_cat'] = pd.cut(housing["median_income"], bins=[0., 1.5, 3.0, 4.5, 6., np.inf], labels=[1, 2, 3, 4, 5])
+            housing['id'] = housing['longitude'] * 1000 + housing['latitude'] # adds an `index` column
 
             housing_num = housing.select_dtypes(include=[np.number])
-            imputer.fit(housing_num)
+            housing_categories = housing['ocean_view']
+
+            housing_transformed = pipeline.fit_transform(housing_num)
             # concat the imputed with the objects that were not transformed
-            housing = pd.concat([pd.DataFrame(imputer.transform(housing_num), columns=housing_num.columns, index=housing_num.index), housing.select_dtypes(include=['object']), housing.select_dtypes(include=['category'])], axis = 1)
             
-            housing['income_cat'] = pd.cut(housing["median_income"], bins=[0., 1.5, 3.0, 4.5, 6., np.inf], labels=[1, 2, 3, 4, 5])
-            housing["rooms_per_house"] = housing["total_rooms"] / housing["households"]
-            housing["bedrooms_ratio"] = housing["total_bedrooms"] / housing["total_rooms"]
-            housing["people_per_house"] = housing["population"] / housing["households"]
             
-            # encode the labels with ordinal encoding
-            df_test_unknown = pd.DataFrame({"ocean_proximity": ["<2H OCEAN", "ISLAND"]})
+            # encoding the labels - on pause for now
+            # encoded = pd.DataFrame(cat_encoder.fit_transform(housing.select_dtypes(include=['object'])), columns = housing.select_dtypes(include=['object']).columns, index = housing.select_dtypes(include=['object'].index))
+            # housing.drop(columns = housing.select_dtypes(include=['object']).columns, inplace = True)
+            # housing = pd.concat([housing, encoded], axis = 1)
+            
+            train_set, test_set = utils.stratified_split(housing_transformed, 0.2, 'id')
 
-            encoded = pd.DataFrame(cat_encoder.transform(df_test_unknown), columns = cat_encoder.get_feature_names_out(), index = df_test_unknown.index)
-            housing.drop(columns = housing.select_dtypes(include=['object']).columns, inplace = True)
-            housing = pd.concat([housing, encoded], axis = 1)
 
-            housing['id'] = housing['longitude'] * 1000 + housing['latitude'] # adds an `index` column
-            train_set, test_set = utils.stratified_split(housing, 0.2, 'id')
+            housing_transformed.to_csv(os.path.join(self.outpath, 'housing.csv'))
+
+            # only start scaling now
 
             for set_ in (train_set, test_set):
                 set_.drop('income_cat', axis=1, inplace=True)
@@ -111,7 +125,6 @@ class HOUSING_HANDSON:
             # TODO: save as a CSV output
             x_train.corr().sort_values(ascending = False)
             x_test.corr().sort_values(ascending = False)
-
 
             fig_path = os.path.join('assets', 'output')
             is_file = os.path.isfile(os.path.join(fig_path, name))
@@ -130,7 +143,7 @@ class HOUSING_HANDSON:
                 else:
                     is_file = True
                 
-            fig = utils.generate_fig(housing, x_label, y_label, c = 'median_house_value', s = 'population')
+            fig = utils.generate_fig(housing, y_label, c = 'median_house_value', s = 'population')
             utils.save_fig(fig_path, name, fig)
         elif isinstance(dataset, str):
             # TODO: Check if URL or file
@@ -141,7 +154,7 @@ class HOUSING_HANDSON:
         return x_train, y_train, x_test, y_test
 
     def train(self, x_train = None, y_train = None, x_test = None, y_test = None, model_name = None):
-        model = KNeighborsRegressor(n_neighbors=6)
+        model = LinearRegression()
         is_folder = False
 
         # TODO: Fix this!
@@ -149,7 +162,7 @@ class HOUSING_HANDSON:
 
         while model_name is None or is_folder is False:
             model_name = input('\nProvide name for an existing model or enter \'new\' to create a new one:\n')
-            full_path = os.path.join(os.path.realpath('.'), model_path, f'{model_name}')
+            full_path = os.path.join(os.path.realpath('.'), self.model_path, f'{model_name}')
 
             if model_name == 'new':
                 # regression with softmax
@@ -168,7 +181,7 @@ class HOUSING_HANDSON:
                 else:
                     model_name = input('\nProvide filename for the new model:\n')
 
-                full_path = os.path.join(os.path.realpath('.'), model_path, f'{model_name}')
+                full_path = os.path.join(os.path.realpath('.'), self.model_path, f'{model_name}')
 
                 if os.path.isfile(full_path):
                     overwrite = input('\nType \'y\' to overwrite the existing file\n')
@@ -192,13 +205,13 @@ class HOUSING_HANDSON:
         x_min, x_max = 0, 0
 
         if model:
-            full_path = os.path.join(os.path.realpath('.'), model_path, model)
+            full_path = os.path.join(os.path.realpath('.'), self.model_path, model)
         
         is_file = os.path.isfile(full_path) if model else False
         while model is None or is_file is False:
-            print(f'\nThe following models are available:\n\t{os.listdir(model_path)}')
+            print(f'\nThe following models are available:\n\t{os.listdir(self.model_path)}')
             model = input('\nProvide filename for an existing model or press \'n\' to exit:\n')
-            full_path = os.path.join(os.path.realpath('.'), model_path, model)
+            full_path = os.path.join(os.path.realpath('.'), self.model_path, model)
 
             if model == 'n':
                 exit()
