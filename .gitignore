@@ -2,6 +2,7 @@
 .vscode/*
 .env
 .ocr_venv
+.ocr_venv
 
 oauth_settings.yml
 db*
@@ -11,7 +12,8 @@ cert.key
 __pycache__/*
 *.pyc
 
-assets/*
-
-*.txt
 *.pdf
+
+assets/*
+datasets/*
+images/*
