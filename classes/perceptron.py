@@ -150,7 +150,7 @@ class Perceptron:
             fig = pickle.load(file)
             x_min, x_max = fig.axes[0].get_xlim()
             y_min, y_max = fig.axes[0].get_ylim()
-            amount = len(fig.axes[0].get_xdata())
+            amount = len(fig.axes[0].lines[0].get_xdata())
 
         # add the data
         xx, yy = np.meshgrid(np.linspace(x_min, x_max, amount),

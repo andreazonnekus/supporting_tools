@@ -272,6 +272,76 @@ def generate_fig(data, x_label = None, y_label = None, show = False,
     
     return fig
 
+def generate_projections(word_list, embeddings, show = False, 
+                 c = None, s = None, height = 6, width = 8, line_width = 1, alpha = 0.4, 
+                 style = 'ggplot', cmap = 'jet', subplots = False, show_grid = True, 
+                 title_size = 14, label_size = 10):
+    """
+    Generate a plot based on input data.
+
+    Parameters:
+    - data: Input data.
+    - x_label (optional): Label for the x-axis. Defaults to None.
+    - y_label (optional): Label for the y-axis. Defaults to None.
+    - show (bool, optional): Whether to display the plot. Defaults to False.
+    - c (optional): Color parameter. Defaults to None.
+    - s (optional): Size parameter. Defaults to None.
+    - height (int, optional): Height of the plot. Defaults to 6.
+    - width (int, optional): Width of the plot. Defaults to 8.
+    - line_width (int, optional): Line width. Defaults to 1.
+    - alpha (float, optional): Transparency of markers. Defaults to 0.4.
+    - style (str, optional): Plot style. Defaults to 'ggplot'.
+    - cmap (str, optional): Color map. Defaults to 'jet'.
+    - subplots (bool, optional): Whether to use subplots. Defaults to False.
+    - show_grid (bool, optional): Whether to display grid lines. Defaults to True.
+    - title_size (int, optional): Font size of the title. Defaults to 14.
+    - label_size (int, optional): Font size of labels. Defaults to 10.
+
+    Returns:
+    plt.Figure: Generated plot figure.
+    """
+    
+    plt.rc('font', size=12)
+    plt.rc('axes', labelsize = label_size, titlesize = title_size)
+    plt.rc('legend', fontsize=12)
+    plt.rc('xtick', labelsize=10)
+    plt.rc('ytick', labelsize=10)
+
+    fig = plt.figure(figsize=(width, height))
+    ax = fig.add_subplot(1, 1, 1)
+
+    # add a param to use different styles etc
+    # color_map = 'viridis'
+    # color = 'k'
+    plt.style.use(style)
+    x_min, x_max, y_min, y_max = 0, 0, 0, 0
+
+    for i, label in enumerate(word_list):
+        x, y = embeddings[i]
+
+        if x < x_min:
+            x_min = x
+        elif x > x_max:
+            x_max = x
+
+        if y < y_min:
+            y_min = y
+        elif y > y_max:
+            y_max = y
+
+        # print (label, " : ", x, " " , y) # uncomment to see the detailed vector info
+        plt.scatter(x, y)
+        plt.annotate(label, xy=(x, y), xytext=(5, 2),
+                    textcoords='offset points', ha='right', va='bottom')
+
+    # makes assumptions about the amounts being processed - x axis is in 10k+ and y axis single digits
+    # but still a more adaptive way of plotting the labels
+    plt.axis([x_min-1, x_max+1, y_min-1, y_max+1])
+    plt.grid(show_grid)
+    plt.title('Word embeddings')
+    
+    return fig
+
 def save_fig(fig_path, fig_name, fig, tight_layout = True, fig_extension = 'png', resolution = 300, show = False):
     """
     Save a generated plot figure.
@@ -299,9 +369,6 @@ def save_fig(fig_path, fig_name, fig, tight_layout = True, fig_extension = 'png'
         fig.savefig(f'{path}.{fig_extension}', format = fig_extension, dpi = resolution)
     except Exception as e:
         print(f'Saving the figure failed: \n\t{e}')
-
-if __name__ == '__main__':
-    sys.exit(main())
 
 def add_predictions(fig, x_line, predicted_line, test_value, prediction, color = 'red', marker = 'kX', linewidth = 1, fontsize = 10, y = 0.8):
     """
@@ -484,3 +551,32 @@ def find_synonym(word, words, model = None):
         if term not in similarity and term != word:
          similarity[term] = model.similarity(word, term)
     return sorted(similarity.items(), key = lambda val: val[1], reverse=True)[0]
+
+def prepare_cbow_batch(data_temp, voc_size):
+    """
+    Prepare a one-hot encoded batch for cbow
+
+    Parameters:
+        data_temp 
+        voc_size
+
+    Returns:
+    NP.Array:
+    NP.Array: 
+    """
+    inputs = []
+    labels = np.zeros((len(data_temp), voc_size), dtype=np.int64)
+
+    for i in range(len(data_temp)):
+        # ont-hot input - context
+        input_temp = []
+        for cw in data_temp[i][0]:
+          cw_onehot=[0]*voc_size
+          cw_onehot[cw]=1
+          input_temp.append(cw_onehot)
+        inputs.append(input_temp)
+
+        # centre
+        labels[i][data_temp[i][1] - 1] = 1
+
+    return np.array(inputs), labels
