@@ -580,3 +580,21 @@ def prepare_cbow_batch(data_temp, voc_size):
         labels[i][data_temp[i][1] - 1] = 1
 
     return np.array(inputs), labels
+
+def prepare_batch(data_temp, voc_size):
+    inputs = []
+    labels = []
+
+    for i in range(len(data_temp)):
+        # ont-hot input - context
+        input_temp = []
+        for cw in data_temp[i][0]:
+          cw_onehot=[0]*voc_size
+          cw_onehot[cw]=1
+          input_temp.append(cw_onehot)
+        inputs.append(input_temp)
+
+        # centre
+        labels.append(data_temp[i][1])
+
+    return np.array(inputs), np.array(labels, dtype = np.int64)
