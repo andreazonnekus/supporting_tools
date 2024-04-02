@@ -18,18 +18,16 @@ class CBOW(nn.Module):
         self.learning_rate = learning_rate
         self.iterations = num_iterations
 
-        self.linear1 = nn.Linear(classes_dim, embedding_dim)
+        self.linear1 = nn.Linear(classes_dim, embedding_dim * window_size) 
         self.linear2 = nn.Linear(embedding_dim * window_size, classes_dim)
         self.activation = nn.ReLU()
         self.loss = nn.CrossEntropyLoss()
-        # self.loss = nn.NLLLoss()
     
     def forward(self, x):
         l1 = self.linear1(torch.sum(x, dim=1))
 
         # get the output of l1
-        out = self.linear2(l1)
-        return torch.log_softmax(out, dim=1)
+        return self.linear2(l1)
 
 cbow = []
 
