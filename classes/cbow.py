@@ -1,5 +1,6 @@
 import torch.nn as nn
-import random, pickle, os, torch
+import random, pickle, os
+from torch import sum, from_numpy
 import numpy as np
 from joblib import dump, load
 import torch.nn.functional as F
@@ -18,13 +19,13 @@ class CBOW(nn.Module):
         self.learning_rate = learning_rate
         self.iterations = num_iterations
 
-        self.linear1 = nn.Linear(classes_dim, embedding_dim * window_size) 
-        self.linear2 = nn.Linear(embedding_dim * window_size, classes_dim)
+        self.linear1 = nn.Linear(classes_dim, embedding_dim * window_dim) 
+        self.linear2 = nn.Linear(embedding_dim * window_dim, classes_dim)
         self.activation = nn.ReLU()
         self.loss = nn.CrossEntropyLoss()
     
     def forward(self, x):
-        l1 = self.linear1(torch.sum(x, dim=1))
+        l1 = self.linear1(sum(x, dim=1))
 
         # get the output of l1
         return self.linear2(l1)
@@ -85,14 +86,13 @@ for epoch in range(no_of_epochs):
 
     # shuffle the training set to make each epoch's batch different, you can also skip this step
     shuffle(cbow)
-    loss_sum = 0
 
     for ind in range(0, len(cbow),batch_size):
         data_temp = cbow[ind : min(ind+batch_size, len(cbow))]
-        inputs_temp, labels_temp = prepare_batch(data_temp, voc_size)
+        inputs_temp, labels_temp = prepare_cbow_batch(data_temp, voc_size)
         
-        inputs_torch = torch.from_numpy(inputs_temp).float()
-        labels_torch = torch.from_numpy(labels_temp).long()
+        inputs_torch = from_numpy(inputs_temp).float()
+        labels_torch = from_numpy(labels_temp).long()
         
         model.train() # mode = True by default
 
@@ -106,11 +106,9 @@ for epoch in range(no_of_epochs):
 
         optimiser.step() # back propagation
 
-        loss_sum += loss.item()
-
     if epoch % 500 == 499:
         print(labels_torch.shape, outputs.size())
-        print('Epoch: %d, loss: %.4f' %(epoch + 1, loss_sum))
+        print('Epoch: %d, loss: %.4f' %(epoch + 1, loss.item()))
 
 figure = generate_projections(word_list, model.embedding.weight.data)
 fig_path = os.path.join('assets', 'output')

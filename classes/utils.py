@@ -15,11 +15,13 @@ from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import FunctionTransformer, StandardScaler
 from sklearn.model_selection import train_test_split
+import torch
 
 load_dotenv()
 
 column_ratio = lambda X: X[:, 0] / X[:, 1]
 ratio_name = lambda transformer, feature_names_in: ['ratio']
+prepare_vocab_dict = lambda char_arr: {n: i for i, n in enumerate(char_arr)}
 
 def make_ratio_pipeline() -> Pipeline:
     return make_pipeline([
@@ -581,7 +583,10 @@ def prepare_cbow_batch(data_temp, voc_size):
 
     return np.array(inputs), labels
 
-def prepare_batch(data_temp, voc_size):
+def prepare_cbow_batch(data_temp, voc_size):
+    """
+    A preparatory function for 
+    """
     inputs = []
     labels = []
 
@@ -598,3 +603,53 @@ def prepare_batch(data_temp, voc_size):
         labels.append(data_temp[i][1])
 
     return np.array(inputs), np.array(labels, dtype = np.int64)
+
+def add_paddings(word, max_num=5):
+    diff = max_num - len(word)
+    return word+'P'*diff
+
+def make_seq2seq_batch(seq_data, max_word_len = 5, dict_len:int = None, char_array = None):
+
+    encoder_input_batch = []
+    decoder_input_batch = []
+    target_batch = []
+    # Generate unique tokens list
+
+    if not char_array:
+        chars = []
+        for seq in seq_data:
+            chars += list(seq[0])
+            chars += list(seq[1])
+        # To simplify the question, we put all characters (including input and output) into one set
+        char_array = list(set(chars))
+
+        # special tokens are required
+        # B: Beginning of Sequence
+        # E: Ending of Sequence
+        # P: Padding of Sequence - for different size input
+        # U: Unknown element of Sequence - for different size input
+        char_array.append('B')
+        char_array.append('E')
+        char_array.append('P')
+        char_array.append('U')
+
+    num_dict = prepare_vocab_dict(char_array)
+
+    if not dict_len:
+        dict_len = len(num_dict)
+
+    for seq in seq_data:
+        # Input for encoder cell, convert to vector
+        input_word = add_paddings(seq[0], max_word_len)
+        en_input_data = [num_dict[n] for n in input_word]
+        # Input for decoder cell, Add 'B' at the beginning of the sequence data
+        de_input_data  = [num_dict[n] for n in ('B'+ seq[1])]
+
+        target = [num_dict[n] for n in (seq[1] + 'E')]
+
+        # Convert each character vector to one-hot encoding data
+        encoder_input_batch.append(np.eye(dict_len)[en_input_data])
+        decoder_input_batch.append(np.eye(dict_len)[de_input_data])
+
+        target_batch.append(target)
+    return char_array, encoder_input_batch, decoder_input_batch, target_batch

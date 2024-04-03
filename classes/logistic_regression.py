@@ -14,47 +14,42 @@ class LogisticRegressionClassifier():
         self.learning_rate = learning_rate
         self.iterations = iterations
         self.verbose = verbose
+
+        # store calculations
+        self.probability, self.gradient, self.cost, self.ch = 0, 0, 0, []
+        self.theta = 0
+
+        # store this as a lambda function - Equation 4-13. Logistic Regression model estimated probability (vectorized form)
+        self.estimate_probability = lambda instance: 1/(1+(np.exp(-np.dot(instance, self.theta.T))))
         
-        # weight, bias
-        # make sure these accept floats, and don't just cast them to 0
-        self.probability, self.gradient, self.cost = 0, 0, []
-        self.theta = [ 0, 0 ]
-        # store this as a lmabda function - Equation 4-13. Logistic Regression model estimated probability (vectorized form)
-        # self.estimate_probability_singluar = lambda instance: 1/(1+(np.exp(-np.dot(self.theta[0],np.array(instance, dtype=np.float64).reshape(-1,1)) + self.theta[1])))
-        self.estimate_probability = lambda instance: 1/(1+(np.exp(-np.dot(self.theta[0], instance.T) + self.theta[1])))
-        # self.estimate_probability = lambda instance: 1/(1+(np.exp(-np.dot(instance,self.theta[0]))))
         # calculate the logistic regression cost function - Equation 4-16. Cost function of a single training instance
-        # self.predictor = lambda instance: np.expand_dims((self.estimate_probability(instance) >= 0.5).astype(int), axis=1)
         self.predictor = lambda instance: (self.estimate_probability(instance) >= 0.5).astype(int)
 
     def train(self, X, y):
         instances, feats = X.shape
         # self.gradient = np.zeros(instances, dtype=np.int64)
-        self.theta[0] = np.random.random((1, feats))
-        self.theta[1] = random.random()
+        self.theta = np.random.random((1, feats))
+        self.bias = np.random
 
         for epoch in range(0, self.iterations):
-            # ix = random.random(instances)
-            # x = X[ix]
-            # label = y[ix]
-
-            # TODO: calculate the gradient
-            # self.gradient = y.T - (np.dot(self.theta[0], X.T) + self.theta[1])
-            self.gradient = y.T - self.estimate_probability(X)
-            
-            # update theta
-            self.theta[0] -= self.learning_rate * -np.mean(np.dot(X.T, self.gradient.T)) 
-            self.theta[1] -= self.learning_rate * -np.mean(np.sum(self.gradient))
-
             # estimate probability
             self.probability = self.estimate_probability(X)
+            
+            # calculate the gradient
+            self.gradient = (np.dot(X.T, (self.probability - y)) / instances) * lr
+            
+            # update theta
+            self.theta -= self.gradient.T
 
             #calculate cost function
-            self.cost.append(np.mean(self.probability - y.T))
+            self.cost = np.asarray(((-y * np.log(self.probability) - ((1.0-y) * np.log(1.0-self.probability))).sum()/instances))[0]
+
+            # store cost function history
+            self.ch.append(self.cost)
 
             # output some training information,
-            # if abs(self.gradient - self.cost[-1]) <= 0.0001:
-            #     print(f'converged at {epoch}')
+            if len(self.ch) > 2 and abs(self.ch[-2] - self.cost) <= 0.0001:
+                print(f'converged at {epoch}')
             if epoch % 400 == 399 and self.verbose:
                 print(f'0:0.3%', self.cost)
 
@@ -62,9 +57,10 @@ lr = 0.01
 iterations = 10000
 model = LogisticRegressionClassifier(iterations, lr)
 
-x_train = pd.read_csv(os.path.join("assets", "train", 'FMNIST_training_set.csv'))
+# load and scale down
+x_train = pd.read_csv(os.path.join("assets", "train", 'FMNIST_training_set.csv'))/255
 y_train = pd.read_csv(os.path.join("assets", "train", 'FMNIST_training_set_labels.csv'))
-x_test = pd.read_csv(os.path.join("assets", "train", 'FMNIST_test_set.csv'))
+x_test = pd.read_csv(os.path.join("assets", "train", 'FMNIST_test_set.csv'))/255
 y_test = pd.read_csv(os.path.join("assets", "train", 'FMNIST_test_set_labels.csv'))
 
 # break this into a binary classification problem: 7 is sneaker, 5 is sandal
