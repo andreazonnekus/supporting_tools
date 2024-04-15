@@ -609,7 +609,6 @@ def add_paddings(word, max_num=5):
     return word+'P'*diff
 
 def make_seq2seq_batch(seq_data, max_word_len = 5, dict_len:int = None, char_array = None):
-
     encoder_input_batch = []
     decoder_input_batch = []
     target_batch = []
