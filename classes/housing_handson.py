@@ -15,9 +15,9 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler, FunctionTransfo
 from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.linear_model import LinearRegression
 from sklearn.compose import ColumnTransformer, make_column_selector, make_column_transformer
-from sklearn.cluster import ClusterSimilarity
+# from sklearn.cluster import ClusterSimilarity
 
-from . import utils, housing_transformer
+from classes import utils
 
 class HOUSING_HANDSON:
     def __init__(self):
@@ -82,30 +82,7 @@ class HOUSING_HANDSON:
             housing = pd.read_csv(housing_path)
             housing['id'] = housing['longitude'] * 1000 + housing['latitude']
 
-            log_pipeline = make_pipeline(
-                (SimpleImputer(strategy="median")),
-                (FunctionTransformer(np.log, feature_names_out='one-to-one')),
-                (StandardScaler()))
 
-            number_pipeline = make_pipeline(
-                (SimpleImputer(strategy="median")),
-                (StandardScaler()))
-
-            category_pipeline = Pipeline([
-                ('imputer', SimpleImputer(strategy="most_frequent")),
-                'categories', OneHotEncoder(handle_unknown = "ignore")
-            ])
-
-            cluster_similarity = ClusterSimilarity(n_clusters = 10, gamma = 1., random_state = 42)
-
-            preprocessor = ColumnTransformer([
-                ('bedrooms', utils.make_ratio_pipeline(), ['total_bedrooms', 'total_rooms']),
-                ('rooms_per_house', utils.make_ratio_pipeline(), ['total_rooms', 'housholds']),
-                ('people_per_house', utils.make_ratio_pipeline(), ['population', 'households']),
-                ('log', log_pipeline),
-                ('geo', cluster_similarity, ['latitude', 'longitude']),
-                ('cat', category_pipeline, make_column_selector(dtype_include=object))],
-                remainder = number_pipeline)
             
             train_set, test_set = utils.stratified_split(housing, 0.2, 'id')
 
@@ -116,8 +93,8 @@ class HOUSING_HANDSON:
             y_test = test_set[y_label].copy()
 
             # TODO: save as a CSV output
-            x_train.corr().sort_values(ascending = False)
-            x_test.corr().sort_values(ascending = False)
+            # x_train.corr().sort_values(ascending = False)
+            # x_test.corr().sort_values(ascending = False)
 
             fig_path = os.path.join('assets', 'output')
             is_file = os.path.isfile(os.path.join(fig_path, name))
@@ -183,9 +160,36 @@ class HOUSING_HANDSON:
                     is_folder = True
 
             # housing.to_csv(os.path.join(self.outpath, 'x_train.csv'))
-            model.fit(x_train, y_train)
+            log_pipeline = make_pipeline(
+                (SimpleImputer(strategy="median")),
+                (FunctionTransformer(np.log, feature_names_out='one-to-one')),
+                (StandardScaler()))
 
-            results = model.score(x_test, y_test)
+            number_pipeline = make_pipeline(
+                (SimpleImputer(strategy="median")),
+                (StandardScaler()))
+
+            category_pipeline = Pipeline([
+                ('imputer', SimpleImputer(strategy="most_frequent")),
+                'categories', OneHotEncoder(handle_unknown = "ignore")
+            ])
+
+            # cluster_similarity = ClusterSimilarity(n_clusters = 10, gamma = 1., random_state = 42)
+
+            preprocessor = ColumnTransformer([
+                ('bedrooms', utils.make_ratio_pipeline(), ['total_bedrooms', 'total_rooms']),
+                ('rooms_per_house', utils.make_ratio_pipeline(), ['total_rooms', 'housholds']),
+                ('people_per_house', utils.make_ratio_pipeline(), ['population', 'households']),
+                ('log', log_pipeline),
+                # ('geo', cluster_similarity, ['latitude', 'longitude']),
+                ('cat', category_pipeline, make_column_selector(dtype_include=object))],
+                remainder = number_pipeline)
+            
+            x_train_transformed = preprocessor.fit_transform(x_train)
+
+            model.fit(x_train_transformed, y_train)
+
+            
             # TODO: use this
 
             dump(model, full_path)
